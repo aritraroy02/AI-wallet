@@ -1,89 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import WalletConnect from './components/WalletConnect';
-import ChatInterface from './components/ChatInterface';
-import Portfolio from './components/Portfolio';
-import TransactionPreview from './components/TransactionPreview';
-import { connectWallet, getWalletInfo } from './services/walletService';
+import Header from './components/Header';
+import Balance from './components/Balance';
+import IncomeExpenses from './components/IncomeExpenses';
+import TransactionList from './components/TransactionList';
+import AddTransaction from './components/AddTransaction';
 import './App.css';
 
 function App() {
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [walletInfo, setWalletInfo] = useState(null);
-  const [pendingTransaction, setPendingTransaction] = useState(null);
+  // FIX 1: Initialize state from localStorage safely.
+  // We provide a function to useState's initial value. This function runs only once.
+  const [transactions, setTransactions] = useState(() => {
+    const localData = localStorage.getItem('transactions');
+    // If localData exists, parse it. Otherwise, return an empty array.
+    // This prevents the app from crashing on the first load.
+    return localData ? JSON.parse(localData) : [];
+  });
 
+  // FIX 2: Use a single useEffect to save data to localStorage when it changes.
+  // This effect runs only when the transactions state updates.
   useEffect(() => {
-    checkWalletConnection();
-  }, []);
+    localStorage.setItem('transactions', JSON.stringify(transactions));
+  }, [transactions]);
 
-  const checkWalletConnection = async () => {
-    try {
-      const info = await getWalletInfo();
-      if (info) {
-        setWalletConnected(true);
-        setWalletInfo(info);
-      }
-    } catch (error) {
-      console.error('Wallet check failed:', error);
-    }
-  };
 
-  const handleWalletConnect = async () => {
-    try {
-      const result = await connectWallet();
-      if (result.success) {
-        setWalletConnected(true);
-        setWalletInfo(result.walletInfo);
-      }
-    } catch (error) {
-      console.error('Wallet connection failed:', error);
-    }
-  };
+  const addTransaction = (transaction) => {
+    setTransactions(transactions => [...transactions, transaction]);
+  }
 
-  const handleTransactionGenerated = (transaction) => {
-    setPendingTransaction(transaction);
-  };
-
-  const handleTransactionClose = () => {
-    setPendingTransaction(null);
-  };
+  const handleDelete = (id) => {
+    setTransactions(transactions.filter(transaction => transaction.id !== id));
+  }
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>🧠 AI Smart Wallet</h1>
-        {walletConnected && walletInfo && (
-          <div className="wallet-info">
-            <span>Connected: {walletInfo.address.slice(0, 6)}...{walletInfo.address.slice(-4)}</span>
-            <span>Balance: {walletInfo.balance} ETH</span>
-          </div>
-        )}
-      </header>
-
-      <main className="App-main">
-        {!walletConnected ? (
-          <WalletConnect onConnect={handleWalletConnect} />
-        ) : (
-          <div className="app-grid">
-            <div className="chat-section">
-              <ChatInterface 
-                walletInfo={walletInfo}
-                onTransactionGenerated={handleTransactionGenerated}
-              />
-            </div>
-            <div className="portfolio-section">
-              <Portfolio walletInfo={walletInfo} />
-            </div>
-          </div>
-        )}
-      </main>
-
-      {pendingTransaction && (
-        <TransactionPreview 
-          transaction={pendingTransaction}
-          onClose={handleTransactionClose}
-          walletInfo={walletInfo}
-        />
-      )}
+    <div className="container">
+      <Header />
+      <Balance transactions={transactions} />
+      <IncomeExpenses transactions={transactions} />
+      <TransactionList transactions={transactions} handleDelete={handleDelete} />
+      <AddTransaction addTransaction={addTransaction} />
     </div>
   );
 }
